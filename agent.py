@@ -156,19 +156,6 @@ TOOLS = [
     },
 ]
 
-# Tool → minimum phase required
-TOOL_PHASE = {
-    "nmap_scan": 3,
-    "gobuster_dir": 3,
-    "nikto_scan": 3,
-    "netexec_smb": 3,
-    "searchsploit": 4,
-    "bloodhound_collect": 4,
-    "linpeas": 6,
-    "winpeas": 6,
-    "run_command": 2,
-}
-
 DANGEROUS_PATTERNS = [
     "rm -rf", "dd if=", "mkfs", "format", ":(){ :|:& };:",
     "msfconsole", "exploit", "payload", "hydra", "john",
@@ -294,16 +281,7 @@ def is_safe_command(cmd: str) -> bool:
 
 
 def run_tool(name: str, args: Dict[str, Any]) -> str:
-    """Execute a tool only if the current phase allows it."""
-    required = TOOL_PHASE.get(name, 1)
-    current = load_phase()
-    if current < required:
-        return (
-            f"BLOCKED: {name} belongs in phase {required} or later. "
-            f"Current phase is {current} ({PHASES[current-1]}). "
-            f"Finish earlier phases first."
-        )
-
+    """Execute a tool. Phase order is guidance, not a hard block."""
     try:
         if name == "nmap_scan":
             target = args.get("target", "")
@@ -465,12 +443,17 @@ def main():
                 "5. Exploitation — only after confirmation and only to prove the issue.\n"
                 "6. Post-Exploitation & Privilege Escalation — document access obtained.\n"
                 "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
-                "Follow the phases in order. Do not skip.\n"
-                "If a tool or approach fails, stay in the current phase or return to the prior phase and re-enumerate. Do not jump ahead.\n"
-                "Traditional tools by phase:\n"
-                "- Phase 3: nmap, gobuster, nikto, NetExec\n"
-                "- Phase 4: searchsploit (ExploitDB), BloodHound\n"
-                "- Phase 6: LinPEAS, WinPEAS (only after foothold)\n"
+                "Follow the foundational phases in order before moving to the next:\n"
+                "1. Pre-Engagement & Scoping\n"
+                "2. Reconnaissance\n"
+                "3. Scanning & Enumeration\n"
+                "4. Vulnerability Analysis\n"
+                "5. Exploitation\n"
+                "6. Post-Exploitation & Privilege Escalation\n"
+                "7. Reporting & Remediation\n\n"
+                "Complete the objectives of the current phase before advancing. "
+                "If something does not work, return to an earlier phase and gather more information. "
+                "Traditional tools support the phases but do not replace the sequence.\n"
                 "Before any active tool, confirm the target is in scope. "
                 "State the current phase at the start of each major action. "
                 "Prefer passive techniques until the scanning phase. "
