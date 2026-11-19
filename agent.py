@@ -128,6 +128,20 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "searchsploit",
+            "description": "Search ExploitDB for public exploits matching a service or CVE. Phase 4 - Vulnerability Analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Service name, version, or CVE to search"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "bloodhound_collect",
             "description": "Collect BloodHound data (SharpHound/bloodhound-python) from an in-scope AD environment. Phase 4.",
             "parameters": {
@@ -341,6 +355,16 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
             return result.stdout + result.stderr
 
+        elif name == "searchsploit":
+            query = args.get("query", "")
+            if not query:
+                return "No query provided."
+            if not Confirm.ask(f"Search ExploitDB for '{query}'?", default=True):
+                return "Cancelled."
+            cmd = f"searchsploit {query}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+            return result.stdout + result.stderr
+
         elif name == "bloodhound_collect":
             domain = args.get("domain", "")
             dc = args.get("dc", "")
@@ -421,7 +445,7 @@ def main():
                 "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
                 "Prefer traditional open-source tools mapped to phases:\n"
                 "- Phase 3: nmap, gobuster, nikto, NetExec\n"
-                "- Phase 4: BloodHound collection\n"
+                "- Phase 4: BloodHound collection, searchsploit (ExploitDB)\n"
                 "- Phase 6: LinPEAS / WinPEAS after foothold\n"
                 "Before any active tool, confirm the target is in scope. "
                 "State the current phase at the start of each major action. "
