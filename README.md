@@ -1,5 +1,13 @@
 # PrismRedline
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![CI](https://github.com/generalwax2018/PrismRedline/actions/workflows/ci.yml/badge.svg)](https://github.com/generalwax2018/PrismRedline/actions/workflows/ci.yml)
+
 Local AI-powered red team assistant that follows the classic pentesting phases. Runs on Ollama + real Kali tools.
+
+> ⚠️ **Authorized use only.** This is an offensive security tool. Use it **only**
+> against systems you own or have **explicit written permission** to test. You are
+> responsible for complying with all applicable laws. See [`SECURITY.md`](SECURITY.md).
 
 ## Architecture
 

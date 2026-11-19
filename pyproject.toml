@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prismredline"
+version = "0.1.0"
+description = "Local AI red-team assistant that follows the classic pentesting phases, running on Ollama + real Kali tools."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "generalwax2018" }]
+keywords = ["pentest", "red-team", "security", "ollama", "kali", "ai-agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = [
+    "requests",
+    "rich",
+    "pyyaml",
+    "fastapi",
+    "uvicorn",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/generalwax2018/PrismRedline"
+Issues = "https://github.com/generalwax2018/PrismRedline/issues"
+
+[project.scripts]
+prismredline = "agent:main"
+
+[tool.setuptools]
+py-modules = ["agent", "cli", "report", "gui"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+# Keep the default rule set light for an early-stage project.
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # long lines in tool descriptions / templates
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
