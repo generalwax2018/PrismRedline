@@ -1,0 +1,5 @@
+ollama
+requests
+rich
+pydantic
+python-dotenv
