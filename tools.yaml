@@ -1,7 +1,7 @@
-# PrisimRedline Tool Inventory
+# PrismRedline Tool Inventory
 # Traditional open-source tools organized by pentest phase.
 # status: core | optional | future
-# The agent and setup.sh reference this list.
+# setup.sh installs the core set; the agent exposes a subset of these as callable tools.
 
 tools:
   # Phase 2-3: Recon & Scanning

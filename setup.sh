@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# PrisimRedline tool bootstrap
+# PrismRedline tool bootstrap
 # Installs traditional pentest tools on Debian-based systems (Kali, Parrot, Ubuntu, Debian).
 # Safe to re-run.
 
 set -e
 
-echo "PrisimRedline — installing core tools (see tools.yaml for full inventory)"
+echo "PrismRedline — installing core tools (see tools.yaml for full inventory)"
 
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "apt-get not found. This installer supports Debian-based systems only."
