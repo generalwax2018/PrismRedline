@@ -84,14 +84,59 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "run_command",
-            "description": "Run a safe shell command. Use for enumeration or analysis only. Dangerous commands are blocked.",
+            "name": "linpeas",
+            "description": "Run LinPEAS privilege escalation enumeration on a Linux host you already have access to. Phase 6.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "command": {"type": "string", "description": "Shell command to run"},
+                    "target": {"type": "string", "description": "Host where you have a shell or can execute"},
                 },
-                "required": ["command"],
+                "required": ["target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "winpeas",
+            "description": "Run WinPEAS privilege escalation enumeration on a Windows host you already have access to. Phase 6.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "Host where you have a shell or can execute"},
+                },
+                "required": ["target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "netexec_smb",
+            "description": "Run NetExec (nxc) SMB enumeration against an in-scope target. Traditional AD discovery. Phase 3-4.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "IP or hostname"},
+                    "username": {"type": "string", "description": "Optional username"},
+                    "password": {"type": "string", "description": "Optional password"},
+                },
+                "required": ["target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bloodhound_collect",
+            "description": "Collect BloodHound data (SharpHound/bloodhound-python) from an in-scope AD environment. Phase 4.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "domain": {"type": "string", "description": "Domain to collect"},
+                    "dc": {"type": "string", "description": "Domain controller IP"},
+                },
+                "required": ["domain"],
             },
         },
     },
@@ -261,6 +306,50 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
             return result.stdout + result.stderr
 
+        elif name == "linpeas":
+            target = args.get("target", "")
+            blocked = require_scope(target)
+            if blocked:
+                return blocked
+            if not Confirm.ask(f"Run LinPEAS on {target}?", default=False):
+                return "Cancelled."
+            # Assumes linpeas.sh is available; traditional post-foothold enum
+            cmd = "curl -sL https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh | bash"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+            return result.stdout + result.stderr
+
+        elif name == "winpeas":
+            target = args.get("target", "")
+            blocked = require_scope(target)
+            if blocked:
+                return blocked
+            if not Confirm.ask(f"Run WinPEAS on {target}?", default=False):
+                return "Cancelled."
+            return "WinPEAS: transfer winPEASx64.exe to the host and execute. Record output in the host steps."
+
+        elif name == "netexec_smb":
+            target = args.get("target", "")
+            blocked = require_scope(target)
+            if blocked:
+                return blocked
+            if not Confirm.ask(f"Run NetExec SMB against {target}?", default=False):
+                return "Cancelled."
+            user = args.get("username", "")
+            password = args.get("password", "")
+            auth = f"-u {user} -p {password}" if user else ""
+            cmd = f"nxc smb {target} {auth}".strip()
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            return result.stdout + result.stderr
+
+        elif name == "bloodhound_collect":
+            domain = args.get("domain", "")
+            dc = args.get("dc", "")
+            if not Confirm.ask(f"Collect BloodHound data for {domain}?", default=False):
+                return "Cancelled."
+            cmd = f"bloodhound-python -d {domain} -u '' -p '' -ns {dc} -c all" if dc else f"bloodhound-python -d {domain} -c all"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+            return result.stdout + result.stderr
+
         elif name == "run_command":
             command = args.get("command", "")
             if not is_safe_command(command):
@@ -330,6 +419,10 @@ def main():
                 "5. Exploitation — only after confirmation and only to prove the issue.\n"
                 "6. Post-Exploitation & Privilege Escalation — document access obtained.\n"
                 "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
+                "Prefer traditional open-source tools mapped to phases:\n"
+                "- Phase 3: nmap, gobuster, nikto, NetExec\n"
+                "- Phase 4: BloodHound collection\n"
+                "- Phase 6: LinPEAS / WinPEAS after foothold\n"
                 "Before any active tool, confirm the target is in scope. "
                 "State the current phase at the start of each major action. "
                 "Prefer passive techniques until the scanning phase. "
