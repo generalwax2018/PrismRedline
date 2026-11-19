@@ -1,0 +1,40 @@
+# MITRE ATT&CK technique mapping for common pentest activities
+# Used by the report generator to tag findings
+
+techniques:
+  T1595: {name: "Active Scanning", tactic: "Reconnaissance", phase: 3}
+  T1046: {name: "Network Service Discovery", tactic: "Discovery", phase: 3}
+  T1083: {name: "File and Directory Discovery", tactic: "Discovery", phase: 3}
+  T1190: {name: "Exploit Public-Facing Application", tactic: "Initial Access", phase: 5}
+  T1078: {name: "Valid Accounts", tactic: "Initial Access", phase: 5}
+  T1110: {name: "Brute Force", tactic: "Credential Access", phase: 5}
+  T1021: {name: "Remote Services", tactic: "Lateral Movement", phase: 6}
+  T1570: {name: "Lateral Tool Transfer", tactic: "Lateral Movement", phase: 6}
+  T1068: {name: "Exploitation for Privilege Escalation", tactic: "Privilege Escalation", phase: 6}
+  T1059: {name: "Command and Scripting Interpreter", tactic: "Execution", phase: 5}
+  T1003: {name: "OS Credential Dumping", tactic: "Credential Access", phase: 6}
+  T1087: {name: "Account Discovery", tactic: "Discovery", phase: 4}
+
+# Open-source resources useful for traditional pentesting
+resources:
+  - name: "MITRE ATT&CK"
+    url: "https://attack.mitre.org/"
+    use: "Technique and tactic reference"
+  - name: "Nmap"
+    url: "https://nmap.org/"
+    use: "Host and service discovery"
+  - name: "Impacket"
+    url: "https://github.com/fortra/impacket"
+    use: "Windows/AD protocol interaction"
+  - name: "CrackMapExec / NetExec"
+    url: "https://github.com/Pennyw0rth/NetExec"
+    use: "AD enumeration and lateral movement support"
+  - name: "BloodHound"
+    url: "https://github.com/BloodHoundAD/BloodHound"
+    use: "AD attack path visualization"
+  - name: "LinPEAS / WinPEAS"
+    url: "https://github.com/peass-ng/PEASS-ng"
+    use: "Privilege escalation enumeration"
+  - name: "SecLists"
+    url: "https://github.com/danielmiessler/SecLists"
+    use: "Wordlists for discovery"

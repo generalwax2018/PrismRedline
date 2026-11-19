@@ -4,6 +4,7 @@ Professional format with a clear attack chain section.
 """
 
 import json
+import yaml
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -70,7 +71,40 @@ def build_detailed_findings(hosts: dict) -> str:
     return "\n".join(sections)
 
 
-def generate(output: str = "report.md"):
+def build_mitre(hosts: dict) -> str:
+    attack = load_yaml("attack_map.yaml")
+    techniques = attack.get("techniques", {})
+    if not techniques:
+        return "_No ATT&CK mapping available._\n"
+
+    lines = ["| ID | Technique | Tactic | Relevant Phase |", "|----|-----------|--------|----------------|"]
+    for tid, info in techniques.items():
+        lines.append(
+            f"| {tid} | {info.get('name','')} | {info.get('tactic','')} | {info.get('phase','')} |"
+        )
+    lines.append("\n_Mapping is indicative. Specific techniques observed during the engagement should be noted in the detailed findings._")
+    return "\n".join(lines)
+
+
+def build_resources() -> str:
+    attack = load_yaml("attack_map.yaml")
+    resources = attack.get("resources", [])
+    if not resources:
+        return "_None listed._\n"
+    lines = []
+    for r in resources:
+        lines.append(f"- **{r.get('name')}** — {r.get('use')} ({r.get('url')})")
+    return "\n".join(lines)
+
+
+def load_yaml(name: str) -> dict:
+    p = BASE / name
+    if not p.exists():
+        return {}
+    try:
+        return yaml.safe_load(p.read_text()) or {}
+    except Exception:
+        return {}
     scope = load_json("scope.json", {"name": "Unnamed Engagement", "allowed": []})
     state = load_json("state.json", {"hosts": {}})
     hosts = state.get("hosts", {})
@@ -89,6 +123,8 @@ def generate(output: str = "report.md"):
         "{{scope_list}}": "\n".join(f"- {a}" for a in scope.get("allowed", [])) or "- Not defined",
         "{{attack_chain}}": build_attack_chain(hosts),
         "{{detailed_findings}}": build_detailed_findings(hosts),
+        "{{mitre_mapping}}": build_mitre(hosts),
+        "{{resources}}": build_resources(),
         "{{host_inventory}}": "\n".join(f"- {ip}" for ip in hosts) or "- None recorded",
     }
 

@@ -45,7 +45,13 @@ This report presents the results of an authorized penetration test conducted aga
 
 ---
 
-## 5. Host and Service Inventory
+## 5. MITRE ATT&CK Mapping
+
+{{mitre_mapping}}
+
+---
+
+## 6. Host and Service Inventory
 
 {{host_inventory}}
 
