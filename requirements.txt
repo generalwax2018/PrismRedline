@@ -3,3 +3,5 @@ requests
 rich
 pydantic
 python-dotenv
+fastapi
+uvicorn

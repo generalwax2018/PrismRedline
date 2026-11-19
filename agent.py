@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from rich.console import Console
+from cli import status
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
 import requests
