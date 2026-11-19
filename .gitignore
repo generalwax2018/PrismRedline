@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Engagement data — NEVER commit live target info or findings
+scope.json
+state.json
+phase.json
+report.md
+evidence/
+
+# Env / editor
+.env
+.vscode/
+.idea/
+*.swp
+.DS_Store

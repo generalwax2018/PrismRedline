@@ -1,5 +1,5 @@
 """
-PrisimRedline report generator.
+PrismRedline report generator.
 Professional format with a clear attack chain section.
 """
 
@@ -105,6 +105,9 @@ def load_yaml(name: str) -> dict:
         return yaml.safe_load(p.read_text()) or {}
     except Exception:
         return {}
+
+
+def generate(output: str = "report.md"):
     scope = load_json("scope.json", {"name": "Unnamed Engagement", "allowed": []})
     state = load_json("state.json", {"hosts": {}})
     hosts = state.get("hosts", {})
@@ -112,7 +115,7 @@ def load_yaml(name: str) -> dict:
     replacements = {
         "{{engagement_name}}": scope.get("name", "Unnamed Engagement"),
         "{{date}}": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "{{operator}}": "PrisimRedline",
+        "{{operator}}": "PrismRedline",
         "{{risk_summary}}": "See Attack Chain and Detailed Findings" if hosts else "In progress",
         "{{impact_summary}}": (
             f"{len(hosts)} host(s) were assessed. "

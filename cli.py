@@ -1,5 +1,5 @@
 """
-PrisimRedline CLI mode
+PrismRedline CLI mode
 Clean one-line status updates and text progress bars.
 """
 

@@ -1,29 +1,37 @@
 #!/usr/bin/env python3
 """
-PrisimRedline - Local AI red team assistant that follows the classic pentesting phases.
+PrismRedline - Local AI red team assistant that follows the classic pentesting phases.
 Runs against Ollama on your local GPU (RTX 3090 recommended).
 """
 
+import ipaddress
 import json
+import os
+import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from cli import status
+import requests
+from rich.console import Console
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
-import requests
 
 console = Console()
 
-# Configuration
-OLLAMA_URL = "http://127.0.0.1:11434"
-DEFAULT_MODEL = "qwen3:14b"
-SCOPE_FILE = "scope.json"
-PHASE_FILE = "phase.json"
-STATE_FILE = "state.json"  # hosts, ports, reachability
+# Configuration (overridable via environment)
+OLLAMA_URL = os.environ.get("PRISM_OLLAMA_URL", "http://127.0.0.1:11434")
+DEFAULT_MODEL = os.environ.get("PRISM_MODEL", "qwen3:14b")
+
+BASE = Path(__file__).parent
+SCOPE_FILE = BASE / "scope.json"
+PHASE_FILE = BASE / "phase.json"
+STATE_FILE = BASE / "state.json"  # hosts, ports, reachability
+EVIDENCE_DIR = BASE / "evidence"
 
 PHASES = [
     "1. Pre-Engagement & Scoping",
@@ -128,20 +136,6 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "searchsploit",
-            "description": "Search ExploitDB for public exploits matching a service or CVE. Phase 4 - Vulnerability Analysis.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Service name, version, or CVE to search"},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "bloodhound_collect",
             "description": "Collect BloodHound data (SharpHound/bloodhound-python) from an in-scope AD environment. Phase 4.",
             "parameters": {
@@ -154,31 +148,82 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_command",
+            "description": "Run an arbitrary shell command on the Kali workstation. Blocked for destructive patterns; always requires confirmation. Use sparingly.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "The shell command to run"},
+                },
+                "required": ["command"],
+            },
+        },
+    },
 ]
 
 DANGEROUS_PATTERNS = [
     "rm -rf", "dd if=", "mkfs", "format", ":(){ :|:& };:",
     "msfconsole", "exploit", "payload", "hydra", "john",
+    "> /dev/sd", "shutdown", "reboot", "init 0",
 ]
 
 
+# --------------------------------------------------------------------------- #
+# Scope handling
+# --------------------------------------------------------------------------- #
 def load_scope() -> Optional[Dict]:
-    path = Path(SCOPE_FILE)
-    if not path.exists():
+    if not SCOPE_FILE.exists():
         return None
     try:
-        return json.loads(path.read_text())
+        return json.loads(SCOPE_FILE.read_text())
     except Exception:
         return None
+
+
+def _host_from_target(target: str) -> str:
+    """Normalize a target (URL, IP:port, host) down to a bare host/IP."""
+    target = target.strip()
+    if "://" in target:
+        parsed = urlparse(target)
+        return parsed.hostname or target
+    # strip a trailing :port if host part isn't an IPv6 literal
+    if target.count(":") == 1:
+        return target.split(":", 1)[0]
+    return target
+
+
+def _matches_entry(host: str, entry: str) -> bool:
+    """Match a host/IP against a scope entry (CIDR, single IP, or hostname)."""
+    entry = entry.strip()
+    # CIDR or IP range
+    try:
+        net = ipaddress.ip_network(entry, strict=False)
+        try:
+            return ipaddress.ip_address(host) in net
+        except ValueError:
+            return False  # host is a name, entry is a network -> no match
+    except ValueError:
+        pass
+    # Exact IP equality
+    try:
+        if ipaddress.ip_address(entry) == ipaddress.ip_address(host):
+            return True
+    except ValueError:
+        pass
+    # Hostname: exact or subdomain match (case-insensitive)
+    h, e = host.lower(), entry.lower()
+    return h == e or h.endswith("." + e)
 
 
 def in_scope(target: str) -> bool:
     scope = load_scope()
     if not scope:
         return False
-    allowed = scope.get("allowed", [])
-    # Simple substring / exact match for v1
-    return any(target.startswith(a) or a in target for a in allowed)
+    host = _host_from_target(target)
+    return any(_matches_entry(host, a) for a in scope.get("allowed", []))
 
 
 def require_scope(target: str) -> str:
@@ -205,65 +250,101 @@ def create_scope(first_target: str):
     name = Prompt.ask("Engagement name", default="engagement")
     scope = {
         "name": name,
-        "allowed": [first_target],
+        "allowed": [_host_from_target(first_target)],
         "created": datetime.now(timezone.utc).isoformat(),
-        "notes": "Created interactively by AI Kali agent. Only authorized targets."
+        "notes": "Created interactively by PrismRedline. Only authorized targets.",
     }
-    Path(SCOPE_FILE).write_text(json.dumps(scope, indent=2))
-    console.print(f"[green]Created {SCOPE_FILE} with target {first_target}[/green]")
+    SCOPE_FILE.write_text(json.dumps(scope, indent=2))
+    console.print(f"[green]Created {SCOPE_FILE.name} with target {first_target}[/green]")
 
 
+def add_to_scope(target: str):
+    scope = load_scope() or {"name": "engagement", "allowed": []}
+    entry = _host_from_target(target)
+    if entry not in scope.get("allowed", []):
+        scope.setdefault("allowed", []).append(entry)
+        SCOPE_FILE.write_text(json.dumps(scope, indent=2))
+        console.print(f"[green]Added {entry} to scope.[/green]")
+
+
+# --------------------------------------------------------------------------- #
+# State / evidence handling
+# --------------------------------------------------------------------------- #
 def load_state() -> Dict:
-    path = Path(STATE_FILE)
-    if not path.exists():
+    if not STATE_FILE.exists():
         return {"hosts": {}, "scans": []}
     try:
-        return json.loads(path.read_text())
+        return json.loads(STATE_FILE.read_text())
     except Exception:
         return {"hosts": {}, "scans": []}
 
 
 def save_state(state: Dict):
-    Path(STATE_FILE).write_text(json.dumps(state, indent=2))
+    STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
-def record_scan(target: str, output: str, flags: str = ""):
-    """Store nmap-style results so later phases can use them."""
+def _parse_nmap_ports(output: str) -> List[Dict[str, str]]:
+    """Pull open ports/services out of nmap text output."""
+    ports = []
+    for line in output.splitlines():
+        m = re.match(r"^(\d+)/(tcp|udp)\s+(\w+)\s+(.*)$", line.strip())
+        if m and m.group(3) in ("open", "open|filtered"):
+            ports.append({"port": m.group(1), "proto": m.group(2), "service": m.group(4).strip()})
+    return ports
+
+
+def save_evidence(tool: str, target: str, output: str) -> Path:
+    """Persist raw tool output so the report has an auditable evidence trail."""
+    EVIDENCE_DIR.mkdir(exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{tool}_{_host_from_target(target) or 'local'}_{ts}")
+    path = EVIDENCE_DIR / f"{safe}.txt"
+    path.write_text(output)
+    return path
+
+
+def record_scan(target: str, output: str, flags: str = "", tool: str = "nmap"):
+    """Store results so later phases and the report can use them."""
     state = load_state()
+    evidence_path = save_evidence(tool, target, output)
     entry = {
+        "tool": tool,
         "target": target,
         "flags": flags,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "evidence": str(evidence_path.relative_to(BASE)),
         "output_preview": output[:2000],
     }
     state.setdefault("scans", []).append(entry)
-    # Simple host tracking
+
+    host = _host_from_target(target)
     hosts = state.setdefault("hosts", {})
-    if target not in hosts:
-        hosts[target] = {"ports": [], "notes": []}
-    hosts[target]["last_scan"] = entry["timestamp"]
+    if host not in hosts:
+        hosts[host] = {"ports": [], "notes": []}
+    hosts[host]["last_scan"] = entry["timestamp"]
+    if tool == "nmap":
+        found = _parse_nmap_ports(output)
+        if found:
+            hosts[host]["ports"] = found
     save_state(state)
-    console.print(f"[dim]Recorded scan of {target} in state.json[/dim]")
-    scope = load_scope() or {"name": "engagement", "allowed": []}
-    if target not in scope.get("allowed", []):
-        scope.setdefault("allowed", []).append(target)
-        Path(SCOPE_FILE).write_text(json.dumps(scope, indent=2))
-        console.print(f"[green]Added {target} to scope.[/green]")
+    console.print(f"[dim]Recorded {tool} scan of {host} (evidence: {entry['evidence']})[/dim]")
 
 
+# --------------------------------------------------------------------------- #
+# Phase handling
+# --------------------------------------------------------------------------- #
 def load_phase() -> int:
-    path = Path(PHASE_FILE)
-    if not path.exists():
+    if not PHASE_FILE.exists():
         return 1
     try:
-        return int(json.loads(path.read_text()).get("current", 1))
+        return int(json.loads(PHASE_FILE.read_text()).get("current", 1))
     except Exception:
         return 1
 
 
 def set_phase(n: int):
     data = {"current": n, "name": PHASES[n - 1] if 1 <= n <= len(PHASES) else "unknown"}
-    Path(PHASE_FILE).write_text(json.dumps(data, indent=2))
+    PHASE_FILE.write_text(json.dumps(data, indent=2))
     console.print(f"[cyan]Phase → {data['name']}[/cyan]")
 
 
@@ -280,8 +361,16 @@ def is_safe_command(cmd: str) -> bool:
     return not any(pat in cmd_lower for pat in DANGEROUS_PATTERNS)
 
 
+# --------------------------------------------------------------------------- #
+# Tool execution
+# --------------------------------------------------------------------------- #
+def _run(cmd: str, timeout: int) -> str:
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    return (result.stdout or "") + (result.stderr or "")
+
+
 def run_tool(name: str, args: Dict[str, Any]) -> str:
-    """Execute a tool. Phase order is guidance, not a hard block."""
+    """Execute a tool and return its output."""
     try:
         if name == "nmap_scan":
             target = args.get("target", "")
@@ -291,10 +380,9 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
                 return blocked
             if not Confirm.ask(f"Run nmap {flags} against {target}?", default=False):
                 return "Scan cancelled by user."
-            cmd = f"nmap {flags} {target}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
-            output = result.stdout + result.stderr
-            record_scan(target, output, flags)
+            cmd = f"nmap {flags} {shlex.quote(target)}"
+            output = _run(cmd, 300)
+            record_scan(target, output, flags, tool="nmap")
             return output
 
         elif name == "gobuster_dir":
@@ -305,9 +393,10 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
                 return blocked
             if not Confirm.ask(f"Run gobuster against {url}?", default=False):
                 return "Scan cancelled by user."
-            cmd = f"gobuster dir -u {url} -w {wordlist} -q"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
-            return result.stdout + result.stderr
+            cmd = f"gobuster dir -u {shlex.quote(url)} -w {shlex.quote(wordlist)} -q"
+            output = _run(cmd, 300)
+            record_scan(url, output, tool="gobuster")
+            return output
 
         elif name == "nikto_scan":
             target = args.get("target", "")
@@ -316,30 +405,45 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
                 return blocked
             if not Confirm.ask(f"Run nikto against {target}?", default=False):
                 return "Scan cancelled by user."
-            cmd = f"nikto -h {target}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
-            return result.stdout + result.stderr
+            cmd = f"nikto -h {shlex.quote(target)}"
+            output = _run(cmd, 300)
+            record_scan(target, output, tool="nikto")
+            return output
 
         elif name == "linpeas":
             target = args.get("target", "")
             blocked = require_scope(target)
             if blocked:
                 return blocked
-            if not Confirm.ask(f"Run LinPEAS on {target}?", default=False):
+            console.print(
+                "[yellow]Note: LinPEAS enumerates the host it runs ON. Run this on the "
+                "foothold host, not the Kali box, unless Kali itself is the target.[/yellow]"
+            )
+            if not Confirm.ask(f"Download + run LinPEAS locally (context: {target})?", default=False):
                 return "Cancelled."
-            # Assumes linpeas.sh is available; traditional post-foothold enum
-            cmd = "curl -sL https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh | bash"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            return result.stdout + result.stderr
+            # Download to a file first so it is auditable rather than piping curl|bash.
+            lp = EVIDENCE_DIR / "linpeas.sh"
+            EVIDENCE_DIR.mkdir(exist_ok=True)
+            dl = _run(
+                "curl -sL -o " + shlex.quote(str(lp)) +
+                " https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh",
+                120,
+            )
+            if not lp.exists() or lp.stat().st_size == 0:
+                return f"Failed to download LinPEAS. {dl}"
+            output = _run(f"bash {shlex.quote(str(lp))}", 600)
+            record_scan(target, output, tool="linpeas")
+            return output
 
         elif name == "winpeas":
             target = args.get("target", "")
             blocked = require_scope(target)
             if blocked:
                 return blocked
-            if not Confirm.ask(f"Run WinPEAS on {target}?", default=False):
+            if not Confirm.ask(f"Record WinPEAS step for {target}?", default=False):
                 return "Cancelled."
-            return "WinPEAS: transfer winPEASx64.exe to the host and execute. Record output in the host steps."
+            return ("WinPEAS: transfer winPEASx64.exe to the host and execute. "
+                    "Record output in evidence/ and the host steps.")
 
         elif name == "netexec_smb":
             target = args.get("target", "")
@@ -350,58 +454,55 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
                 return "Cancelled."
             user = args.get("username", "")
             password = args.get("password", "")
-            auth = f"-u {user} -p {password}" if user else ""
-            cmd = f"nxc smb {target} {auth}".strip()
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
-            return result.stdout + result.stderr
-
-        elif name == "searchsploit":
-            query = args.get("query", "")
-            if not query:
-                return "No query provided."
-            if not Confirm.ask(f"Search ExploitDB for '{query}'?", default=True):
-                return "Cancelled."
-            cmd = f"searchsploit {query}"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-            return result.stdout + result.stderr
+            auth = f"-u {shlex.quote(user)} -p {shlex.quote(password)}" if user else ""
+            cmd = f"nxc smb {shlex.quote(target)} {auth}".strip()
+            output = _run(cmd, 180)
+            record_scan(target, output, tool="netexec")
+            return output
 
         elif name == "bloodhound_collect":
             domain = args.get("domain", "")
             dc = args.get("dc", "")
+            blocked = require_scope(dc or domain)
+            if blocked:
+                return blocked
             if not Confirm.ask(f"Collect BloodHound data for {domain}?", default=False):
                 return "Cancelled."
-            cmd = f"bloodhound-python -d {domain} -u '' -p '' -ns {dc} -c all" if dc else f"bloodhound-python -d {domain} -c all"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            return result.stdout + result.stderr
+            if dc:
+                cmd = f"bloodhound-python -d {shlex.quote(domain)} -u '' -p '' -ns {shlex.quote(dc)} -c all"
+            else:
+                cmd = f"bloodhound-python -d {shlex.quote(domain)} -c all"
+            output = _run(cmd, 600)
+            record_scan(dc or domain, output, tool="bloodhound")
+            return output
 
         elif name == "run_command":
             command = args.get("command", "")
             if not is_safe_command(command):
-                return "Command blocked: potentially dangerous."
+                return "Command blocked: potentially dangerous pattern detected."
             if not Confirm.ask(f"Run command: {command}?", default=False):
                 return "Command cancelled by user."
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
-            return result.stdout + result.stderr
+            return _run(command, 120)
 
         else:
             return f"Unknown tool: {name}"
 
     except subprocess.TimeoutExpired:
         return "Tool timed out."
+    except FileNotFoundError as e:
+        return f"Tool not installed or not on PATH: {e}"
     except Exception as e:
         return f"Error running tool: {str(e)}"
 
 
+# --------------------------------------------------------------------------- #
+# Ollama
+# --------------------------------------------------------------------------- #
 def chat_with_ollama(messages: List[Dict], model: str = DEFAULT_MODEL) -> Dict:
     """Send messages to Ollama and return the response."""
-    payload = {
-        "model": model,
-        "messages": messages,
-        "tools": TOOLS,
-        "stream": False,
-    }
+    payload = {"model": model, "messages": messages, "tools": TOOLS, "stream": False}
     try:
-        resp = requests.post(f"{OLLAMA_URL}/api/chat", json=payload, timeout=120)
+        resp = requests.post(f"{OLLAMA_URL}/api/chat", json=payload, timeout=300)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -409,9 +510,30 @@ def chat_with_ollama(messages: List[Dict], model: str = DEFAULT_MODEL) -> Dict:
         return {}
 
 
+SYSTEM_PROMPT = (
+    "You are an AI red team assistant on a Kali workstation. "
+    "You MUST follow these phases in order and never skip ahead:\n"
+    "1. Pre-Engagement & Scoping — confirm rules of engagement and allowed targets.\n"
+    "2. Reconnaissance (OSINT) — passive information gathering only.\n"
+    "3. Scanning & Enumeration — active probing of in-scope targets.\n"
+    "4. Vulnerability Analysis — map findings to known weaknesses.\n"
+    "5. Exploitation — only after confirmation and only to prove the issue.\n"
+    "6. Post-Exploitation & Privilege Escalation — document access obtained.\n"
+    "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
+    "Prefer traditional open-source tools mapped to phases:\n"
+    "- Phase 3: nmap, gobuster, nikto, NetExec\n"
+    "- Phase 4: BloodHound collection\n"
+    "- Phase 6: LinPEAS / WinPEAS after foothold\n"
+    "Before any active tool, confirm the target is in scope. "
+    "State the current phase at the start of each major action. "
+    "Prefer passive techniques until the scanning phase. "
+    "Only operate against authorized targets."
+)
+
+
 def main():
-    console.print("[bold green]AI Kali Agent[/bold green]")
-    console.print("Local tool-calling assistant for authorized penetration testing.\n")
+    console.print("[bold green]PrismRedline[/bold green] — local AI red team assistant")
+    console.print(f"[dim]Model: {DEFAULT_MODEL} · Ollama: {OLLAMA_URL}[/dim]\n")
 
     scope = load_scope()
     if scope:
@@ -422,7 +544,7 @@ def main():
 
     current = load_phase()
     console.print(f"[cyan]Current phase: {PHASES[current - 1]}[/cyan]")
-    console.print("[dim]Type 'next phase' to advance, or just work and the agent will stay in order.[/dim]\n")
+    console.print("[dim]Type 'next phase' to advance, 'exit' to quit.[/dim]\n")
 
     try:
         requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
@@ -430,37 +552,7 @@ def main():
         console.print("[red]Ollama does not appear to be running. Start it with: ollama serve[/red]")
         sys.exit(1)
 
-    messages: List[Dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": (
-                "You are an AI red team assistant on a Kali workstation. "
-                "You MUST follow these phases in order and never skip ahead:\n"
-                "1. Pre-Engagement & Scoping — confirm rules of engagement and allowed targets.\n"
-                "2. Reconnaissance (OSINT) — passive information gathering only.\n"
-                "3. Scanning & Enumeration — active probing of in-scope targets.\n"
-                "4. Vulnerability Analysis — map findings to known weaknesses.\n"
-                "5. Exploitation — only after confirmation and only to prove the issue.\n"
-                "6. Post-Exploitation & Privilege Escalation — document access obtained.\n"
-                "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
-                "Follow the foundational phases in order before moving to the next:\n"
-                "1. Pre-Engagement & Scoping\n"
-                "2. Reconnaissance\n"
-                "3. Scanning & Enumeration\n"
-                "4. Vulnerability Analysis\n"
-                "5. Exploitation\n"
-                "6. Post-Exploitation & Privilege Escalation\n"
-                "7. Reporting & Remediation\n\n"
-                "Complete the objectives of the current phase before advancing. "
-                "If something does not work, return to an earlier phase and gather more information. "
-                "Traditional tools support the phases but do not replace the sequence.\n"
-                "Before any active tool, confirm the target is in scope. "
-                "State the current phase at the start of each major action. "
-                "Prefer passive techniques until the scanning phase. "
-                "Only operate against authorized targets."
-            ),
-        }
-    ]
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     while True:
         try:
@@ -482,7 +574,6 @@ def main():
                 message = response.get("message", {})
                 messages.append(message)
 
-                # Check for tool calls
                 tool_calls = message.get("tool_calls", [])
                 if not tool_calls:
                     content = message.get("content", "")
@@ -490,7 +581,6 @@ def main():
                         console.print(Markdown(content))
                     break
 
-                # Execute tools
                 for tool_call in tool_calls:
                     fn = tool_call.get("function", {})
                     name = fn.get("name")
@@ -502,7 +592,8 @@ def main():
 
                     console.print(f"[yellow]Calling tool: {name}[/yellow]")
                     result = run_tool(name, args)
-                    console.print(f"[dim]{result[:500]}...[/dim]" if len(result) > 500 else f"[dim]{result}[/dim]")
+                    preview = f"{result[:500]}..." if len(result) > 500 else result
+                    console.print(f"[dim]{preview}[/dim]")
 
                     messages.append({
                         "role": "tool",

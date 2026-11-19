@@ -1,5 +1,5 @@
 """
-PrisimRedline GUI
+PrismRedline GUI
 Simple local web interface for phase status, scope, and scan progress.
 """
 
@@ -9,7 +9,7 @@ import uvicorn
 from pathlib import Path
 import json
 
-app = FastAPI(title="PrisimRedline")
+app = FastAPI(title="PrismRedline")
 
 BASE = Path(__file__).parent
 
@@ -33,7 +33,7 @@ async def index():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>PrisimRedline</title>
+        <title>PrismRedline</title>
         <meta charset="utf-8">
         <style>
             body {{ font-family: system-ui, sans-serif; background: #0f1115; color: #e6e6e6; margin: 2rem; }}
@@ -45,7 +45,7 @@ async def index():
         </style>
     </head>
     <body>
-        <h1>PrisimRedline</h1>
+        <h1>PrismRedline</h1>
         <div class="card">
             <div class="muted">Current Phase</div>
             <div class="phase">{phase.get("name", "Unknown")}</div>
@@ -69,5 +69,5 @@ async def index():
     return html
 
 if __name__ == "__main__":
-    print("PrisimRedline GUI → http://127.0.0.1:8088")
+    print("PrismRedline GUI → http://127.0.0.1:8088")
     uvicorn.run(app, host="127.0.0.1", port=8088)

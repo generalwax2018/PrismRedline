@@ -1,4 +1,4 @@
-# PrisimRedline
+# PrismRedline
 Local AI-powered red team assistant that follows the classic pentesting phases. Runs on Ollama + real Kali tools.
 
 ## Architecture
@@ -6,7 +6,7 @@ Local AI-powered red team assistant that follows the classic pentesting phases. 
 ```
 You (terminal)
     ↓
-PrisimRedline agent (Python)
+PrismRedline agent (Python)
     ↓
 Ollama (local model on 3090)
     ↓
@@ -15,24 +15,7 @@ Tool wrappers (nmap, gobuster, nikto, sqlmap, etc.)
 Real tools running on Kali
 ```
 
-## Tool Inventory
-
-See `tools.yaml` for the maintained list of traditional tools by phase.  
-`setup.sh` installs the `core` tools. Optional and future tools can be added as the project grows.  
-The goal is a clear, versioned inventory rather than an ad-hoc set of binaries.
-
-Works on any system where the tools are available:
-- Kali Linux
-- Parrot OS
-- Bare-bones Debian / Ubuntu (use the installer below)
-
-### Optional tool bootstrap (Debian-based)
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-Installs nmap, gobuster, nikto, exploitdb, and related packages.  
-Re-runnable. Does not replace a full pentest distro; it only adds what the agent calls.
+## Quick Start (on Kali or Debian-based)
 
 ### 1. Install dependencies
 ```bash
@@ -58,16 +41,26 @@ ollama pull qwen3:14b
 
 ### 4. Set up the agent
 ```bash
-cd PrisimRedline
+cd PrismRedline
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python agent.py
 ```
 
+## Configuration
+Override defaults via environment variables:
+```bash
+export PRISM_MODEL="qwen3:32b"              # default: qwen3:14b
+export PRISM_OLLAMA_URL="http://127.0.0.1:11434"
+```
+
 ## Safety Notes
 - Active tools require scope. If `scope.json` is missing or the target is not listed, the agent will offer to create or update it interactively.
-- High-risk tools still require human confirmation.
+- Scope matching understands CIDR ranges (`10.0.0.0/8`), single IPs, and hostnames (with subdomain matching) — not loose substrings.
+- High-risk tools still require human confirmation. The `run_command` tool is confirmation-gated and blocks destructive patterns.
+- Raw tool output is saved under `evidence/` and summarized in `state.json` for the report's audit trail.
+- `scope.json`, `state.json`, `phase.json`, `report.md`, and `evidence/` are git-ignored so live engagement data is never committed.
 - Run only against systems you own or have explicit written permission to test.
 
 ## How this differs from Microsoft’s red team agents
