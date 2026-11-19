@@ -15,7 +15,20 @@ Tool wrappers (nmap, gobuster, nikto, sqlmap, etc.)
 Real tools running on Kali
 ```
 
-## Quick Start (on Kali or Debian-based)
+## Supported Environments
+
+Works on any system where the tools are available:
+- Kali Linux
+- Parrot OS
+- Bare-bones Debian / Ubuntu (use the installer below)
+
+### Optional tool bootstrap (Debian-based)
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+Installs nmap, gobuster, nikto, exploitdb, and related packages.  
+Re-runnable. Does not replace a full pentest distro; it only adds what the agent calls.
 
 ### 1. Install dependencies
 ```bash
