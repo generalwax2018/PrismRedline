@@ -59,7 +59,13 @@ python agent.py
 - Full phase-aware workflow instead of limited recon/web or AI-safety probing
 - You control the tools, the scope, and the session
 
-## Modes
+## Report Generation
+
+```bash
+python report.py
+```
+
+Produces `report.md` from current scope, phase, and host state. Professional structure without vendor-specific content.
 
 ### CLI (default)
 ```bash
