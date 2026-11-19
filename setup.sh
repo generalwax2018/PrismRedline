@@ -5,7 +5,7 @@
 
 set -e
 
-echo "PrisimRedline — installing core tools"
+echo "PrisimRedline — installing core tools (see tools.yaml for full inventory)"
 
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "apt-get not found. This installer supports Debian-based systems only."

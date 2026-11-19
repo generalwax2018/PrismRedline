@@ -1,0 +1,106 @@
+# PrisimRedline Tool Inventory
+# Traditional open-source tools organized by pentest phase.
+# status: core | optional | future
+# The agent and setup.sh reference this list.
+
+tools:
+  # Phase 2-3: Recon & Scanning
+  - name: nmap
+    phase: 3
+    status: core
+    package: nmap
+    description: Host and service discovery
+  - name: masscan
+    phase: 3
+    status: optional
+    package: masscan
+    description: Fast port scanner
+  - name: gobuster
+    phase: 3
+    status: core
+    package: gobuster
+    description: Directory and DNS brute force
+  - name: ffuf
+    phase: 3
+    status: optional
+    package: ffuf
+    description: Web fuzzer
+  - name: nikto
+    phase: 3
+    status: core
+    package: nikto
+    description: Web server scanner
+
+  # Phase 4: Vulnerability Analysis
+  - name: searchsploit
+    phase: 4
+    status: core
+    package: exploitdb
+    description: ExploitDB search
+  - name: nuclei
+    phase: 4
+    status: optional
+    package: nuclei
+    description: Template-based vulnerability scanner
+
+  # Phase 3-4: AD Enumeration
+  - name: netexec
+    phase: 3
+    status: core
+    package: netexec
+    install: pip
+    description: SMB/WinRM/LDAP enumeration (nxc)
+  - name: bloodhound-python
+    phase: 4
+    status: optional
+    package: bloodhound
+    install: pip
+    description: AD data collection for BloodHound
+  - name: enum4linux-ng
+    phase: 3
+    status: optional
+    package: enum4linux-ng
+    description: SMB enumeration
+  - name: smbclient
+    phase: 3
+    status: core
+    package: smbclient
+    description: SMB share interaction
+
+  # Phase 6: Post-Exploitation / Privesc Enum
+  - name: linpeas
+    phase: 6
+    status: core
+    package: null
+    description: Linux privilege escalation enumeration (fetched at runtime)
+  - name: winpeas
+    phase: 6
+    status: core
+    package: null
+    description: Windows privilege escalation enumeration (fetched at runtime)
+  - name: pspy
+    phase: 6
+    status: optional
+    description: Process monitoring without root
+
+  # Wordlists
+  - name: seclists
+    phase: 3
+    status: optional
+    package: seclists
+    description: Wordlists for discovery
+
+  # Future / consider later
+  - name: impacket
+    phase: 5
+    status: future
+    package: impacket-scripts
+    description: Windows protocol tools
+  - name: responder
+    phase: 5
+    status: future
+    description: LLMNR/NBT-NS poisoner
+  - name: crackmapexec
+    phase: 3
+    status: future
+    description: Legacy name; prefer netexec

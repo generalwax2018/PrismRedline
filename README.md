@@ -15,7 +15,11 @@ Tool wrappers (nmap, gobuster, nikto, sqlmap, etc.)
 Real tools running on Kali
 ```
 
-## Supported Environments
+## Tool Inventory
+
+See `tools.yaml` for the maintained list of traditional tools by phase.  
+`setup.sh` installs the `core` tools. Optional and future tools can be added as the project grows.  
+The goal is a clear, versioned inventory rather than an ad-hoc set of binaries.
 
 Works on any system where the tools are available:
 - Kali Linux
