@@ -5,10 +5,13 @@ The goal is the assistant you can run on a real engagement and defend in the rep
 scope-first, phase-disciplined, evidence-producing, and air-gappable.
 
 ## Near term
-- **MCP client layer** — Front an MCP tool server (mcp-kali-server or similar) with the existing scope + confirmation + phase gates. Breadth without losing the safety model.
-- **Real policy engine** — Move beyond substring filters. Binary allowlist, phase-aware tool gating, dry-run mode, and a tamper-evident evidence log.
-- **Findings as first-class** — Structured findings with severity, evidence links, and remediation. Report pulls from them cleanly.
-- **Phase checklist in CLI/GUI** — Show what is done vs. remaining before advancing.
+- [x] MCP client layer (adapter in place; wire external servers next)
+- [x] Real policy engine (phase-aware gating in `policy.py`)
+- [x] Findings as first-class (severity, CVSS, retest field)
+- [x] Phase checklist in CLI
+- [x] Report HTML export
+- [x] Example lab template
+- [x] Guardrail test suite (`tests/test_guardrails.py`)
 
 ## Mid term
 - **Report as the product** — HTML/PDF export, CVSS, retest tracking. Clients pay for the deliverable.

@@ -1,0 +1,27 @@
+# Example engagement (lab only)
+# This is a template showing the expected evidence and report shape.
+# Do not use against systems you do not own.
+
+engagement: example-lab
+scope:
+  - 10.10.10.0/24
+phases_completed:
+  - 1
+  - 2
+  - 3
+hosts:
+  - ip: 10.10.10.5
+    steps:
+      - title: Host Discovery
+        commands: ["nmap -sn 10.10.10.0/24"]
+      - title: Service Enumeration
+        commands: ["nmap -sV -T4 -F 10.10.10.5"]
+findings:
+  - title: Example finding
+    severity: Medium
+    host: 10.10.10.5
+    evidence: "See evidence/ folder"
+    remediation: "Apply vendor patch"
+notes: |
+  Replace this with a real authorized lab run.
+  Publish the full evidence/ directory and generated report.md alongside it.

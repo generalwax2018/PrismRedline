@@ -19,7 +19,20 @@ def load_findings():
         return []
 
 
-def add_finding(title: str, host: str, severity: str, evidence: str, remediation: str = ""):
+def add_finding(title: str, host: str, severity: str, evidence: str, remediation: str = "", cvss: str = ""):
+    findings = load_findings()
+    findings.append({
+        "title": title,
+        "host": host,
+        "severity": severity,
+        "cvss": cvss,
+        "evidence": evidence,
+        "remediation": remediation,
+        "retest": "pending",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    FINDINGS_FILE.write_text(json.dumps(findings, indent=2))
+    return findings[-1]
     findings = load_findings()
     findings.append({
         "title": title,

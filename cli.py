@@ -41,4 +41,18 @@ class Status:
         print(msg)
 
 
-status = Status()
+def show_checklist(phase: int):
+    """Print phase checklist criteria."""
+    import yaml
+    from pathlib import Path
+    p = Path(__file__).parent / "phase_checklist.yaml"
+    if not p.exists():
+        return
+    data = yaml.safe_load(p.read_text()) or {}
+    info = data.get("phases", {}).get(phase, {})
+    if not info:
+        return
+    print(f"\nPhase {phase} checklist — {info.get('name','')}")
+    for c in info.get("criteria", []):
+        print(f"  [ ] {c}")
+    print()
