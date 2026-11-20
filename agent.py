@@ -476,6 +476,13 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
             record_scan(dc or domain, output, tool="bloodhound")
             return output
 
+        elif name == "cheatsheet":
+            sheet = args.get("name", "").lower()
+            path = Path("cheatsheets") / f"{sheet}.md"
+            if not path.exists():
+                return f"No cheatsheet named '{sheet}'. Available: nmap, privesc, ad"
+            return path.read_text()
+
         elif name == "run_command":
             command = args.get("command", "")
             if not is_safe_command(command):
