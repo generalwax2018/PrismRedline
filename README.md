@@ -96,7 +96,6 @@ One-line status updates and text progress bars. No screen scrolling spam.
 python gui.py
 ```
 Open http://127.0.0.1:8088 for phase, scope, and host summary.
-- Wire this into the official `mcp-kali-server` for more tools.
-- Add HexStrike AI for the full 150+ tool set.
-- Build a simple web UI on top of the agent.
-- Add structured reporting and session state.
+
+## Next Steps
+See ROADMAP.md for planned work.

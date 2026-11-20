@@ -608,7 +608,7 @@ def main():
     parser.add_argument("--target", help="CIDR or host to start phased discovery against")
     args = parser.parse_args()
 
-    console.print("[bold green]PrisimRedline[/bold green]")
+    console.print("[bold green]PrismRedline[/bold green]")
     console.print("Local AI red team assistant\n")
 
     if args.target:

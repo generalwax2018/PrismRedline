@@ -1,8 +1,5 @@
-ollama
 requests
 rich
-pydantic
-python-dotenv
 fastapi
 uvicorn
 pyyaml

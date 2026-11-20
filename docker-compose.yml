@@ -3,7 +3,7 @@ version: "3.8"
 services:
   kali:
     image: kalilinux/kali-rolling
-    container_name: ai-kali
+    container_name: prismredline
     privileged: true
     network_mode: host
     volumes:

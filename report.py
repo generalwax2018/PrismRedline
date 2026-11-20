@@ -120,6 +120,9 @@ def build_findings_section() -> str:
             f"**Remediation:** {f.get('remediation','')}\n"
         )
     return "\n".join(lines)
+
+
+def generate(output: str = "report.md"):
     scope = load_json("scope.json", {"name": "Unnamed Engagement", "allowed": []})
     state = load_json("state.json", {"hosts": {}})
     hosts = state.get("hosts", {})
