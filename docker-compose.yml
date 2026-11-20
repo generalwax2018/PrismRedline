@@ -12,7 +12,7 @@ services:
     command: >
       bash -c "
         apt update &&
-        apt install -y python3 python3-pip nmap gobuster nikto sqlmap &&
+        apt install -y python3 python3-pip nmap gobuster nikto &&
         pip3 install -r /workspace/requirements.txt &&
         echo 'Kali container ready. Install Ollama on the host and run the agent from the host or inside the container.' &&
         tail -f /dev/null
