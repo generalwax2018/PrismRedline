@@ -1,0 +1,34 @@
+# Phase completion checklist
+# Used by CLI/GUI to show when it is reasonable to advance
+
+phases:
+  1:
+    name: "Pre-Engagement & Scoping"
+    criteria:
+      - "scope.json exists and lists allowed targets"
+  2:
+    name: "Reconnaissance (OSINT)"
+    criteria:
+      - "Passive information noted (optional for internal)"
+  3:
+    name: "Scanning & Enumeration"
+    criteria:
+      - "Live hosts identified"
+      - "Ports/services enumerated on live hosts"
+  4:
+    name: "Vulnerability Analysis"
+    criteria:
+      - "Services mapped to potential issues (searchsploit or manual)"
+  5:
+    name: "Exploitation"
+    criteria:
+      - "Only performed with confirmation and in scope"
+  6:
+    name: "Post-Exploitation"
+    criteria:
+      - "Privilege level and access documented"
+  7:
+    name: "Reporting & Remediation"
+    criteria:
+      - "report.md generated"
+      - "Findings recorded"

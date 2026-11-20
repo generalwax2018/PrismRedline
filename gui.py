@@ -27,6 +27,60 @@ async def index():
     phase = load_json("phase.json", {"current": 1, "name": "1. Pre-Engagement & Scoping"})
     scope = load_json("scope.json", {"allowed": []})
     state = load_json("state.json", {"hosts": {}, "scans": []})
+    findings = load_json("findings.json", [])
+    hosts = list(state.get("hosts", {}).keys())
+
+    findings_html = "".join(
+        f"<li><strong>{f.get('severity','?')}</strong> — {f.get('title')} ({f.get('host')})</li>"
+        for f in findings
+    ) or "<li class='muted'>None yet</li>"
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>PrismRedline</title>
+        <meta charset="utf-8">
+        <meta http-equiv="refresh" content="15">
+        <style>
+            body {{ font-family: system-ui, sans-serif; background: #0f1115; color: #e6e6e6; margin: 2rem; }}
+            h1 {{ color: #7dd3fc; }}
+            .card {{ background: #1a1d24; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1rem; }}
+            .phase {{ font-size: 1.2rem; color: #86efac; }}
+            ul {{ margin: 0.5rem 0; }}
+            .muted {{ color: #9ca3af; }}
+        </style>
+    </head>
+    <body>
+        <h1>PrismRedline</h1>
+        <div class="card">
+            <div class="muted">Current Phase</div>
+            <div class="phase">{phase.get("name", "Unknown")}</div>
+        </div>
+        <div class="card">
+            <div class="muted">Scope</div>
+            <ul>
+                {"".join(f"<li>{a}</li>" for a in scope.get("allowed", [])) or "<li class='muted'>None defined</li>"}
+            </ul>
+        </div>
+        <div class="card">
+            <div class="muted">Hosts Discovered ({len(hosts)})</div>
+            <ul>
+                {"".join(f"<li>{h}</li>" for h in hosts[:30]) or "<li class='muted'>None yet</li>"}
+            </ul>
+        </div>
+        <div class="card">
+            <div class="muted">Findings ({len(findings)})</div>
+            <ul>{findings_html}</ul>
+        </div>
+        <p class="muted">Auto-refreshes every 15 seconds. Evidence files are in the evidence/ folder.</p>
+    </body>
+    </html>
+    """
+    return html
+    phase = load_json("phase.json", {"current": 1, "name": "1. Pre-Engagement & Scoping"})
+    scope = load_json("scope.json", {"allowed": []})
+    state = load_json("state.json", {"hosts": {}, "scans": []})
     hosts = list(state.get("hosts", {}).keys())
 
     html = f"""

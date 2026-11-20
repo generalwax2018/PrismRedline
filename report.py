@@ -107,7 +107,19 @@ def load_yaml(name: str) -> dict:
         return {}
 
 
-def generate(output: str = "report.md"):
+def build_findings_section() -> str:
+    findings = load_json("findings.json", [])
+    if not findings:
+        return "_No structured findings recorded. Use findings.py or the agent to add them._\n"
+    lines = []
+    for f in findings:
+        lines.append(
+            f"### {f.get('title')} ({f.get('severity')})\n"
+            f"**Host:** {f.get('host')}\n\n"
+            f"{f.get('evidence','')}\n\n"
+            f"**Remediation:** {f.get('remediation','')}\n"
+        )
+    return "\n".join(lines)
     scope = load_json("scope.json", {"name": "Unnamed Engagement", "allowed": []})
     state = load_json("state.json", {"hosts": {}})
     hosts = state.get("hosts", {})
@@ -125,7 +137,7 @@ def generate(output: str = "report.md"):
         ),
         "{{scope_list}}": "\n".join(f"- {a}" for a in scope.get("allowed", [])) or "- Not defined",
         "{{attack_chain}}": build_attack_chain(hosts),
-        "{{detailed_findings}}": build_detailed_findings(hosts),
+        "{{detailed_findings}}": build_detailed_findings(hosts) + "\n\n## Recorded Findings\n\n" + build_findings_section(),
         "{{mitre_mapping}}": build_mitre(hosts),
         "{{resources}}": build_resources(),
         "{{host_inventory}}": "\n".join(f"- {ip}" for ip in hosts) or "- None recorded",
