@@ -3,7 +3,10 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![CI](https://github.com/generalwax2018/PrismRedline/actions/workflows/ci.yml/badge.svg)](https://github.com/generalwax2018/PrismRedline/actions/workflows/ci.yml)
 
-Local AI-powered red team assistant that follows the classic pentesting phases. Runs on Ollama + real Kali tools.
+**The AI pentest assistant you can actually run on a client engagement and defend in the report.**
+
+Local, phase-disciplined, and auditable. Runs on Ollama + real Kali tools.  
+Scope gate, human confirmation, evidence trail, and ATT&CK-mapped reporting are built in — not bolted on.
 
 > ⚠️ **Authorized use only.** This is an offensive security tool. Use it **only**
 > against systems you own or have **explicit written permission** to test. You are

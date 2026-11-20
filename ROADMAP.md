@@ -1,24 +1,23 @@
 # Roadmap
 
-Rough direction, not a commitment. Issues labeled `good first issue` are the
-easiest entry points.
+PrismRedline is not trying to be the most autonomous or the tool with the most wrappers.  
+The goal is the assistant you can run on a real engagement and defend in the report:  
+scope-first, phase-disciplined, evidence-producing, and air-gappable.
 
-## Near term (0.2.x)
-- Single source of truth for tools: have `agent.py` build its tool list and
-  `setup.sh` build its install list from `tools.yaml`.
-- More unit tests: report rendering, nmap parsing, phase transitions.
-- Config file / `.env` support for model, Ollama URL, default wordlists.
-- Structured logging to a session log in addition to `evidence/`.
+## Near term
+- **MCP client layer** — Front an MCP tool server (mcp-kali-server or similar) with the existing scope + confirmation + phase gates. Breadth without losing the safety model.
+- **Real policy engine** — Move beyond substring filters. Binary allowlist, phase-aware tool gating, dry-run mode, and a tamper-evident evidence log.
+- **Findings as first-class** — Structured findings with severity, evidence links, and remediation. Report pulls from them cleanly.
+- **Phase checklist in CLI/GUI** — Show what is done vs. remaining before advancing.
 
 ## Mid term
-- More tool wrappers from `tools.yaml` (masscan, ffuf, searchsploit, nuclei,
-  enum4linux-ng), each behind the scope + confirmation gates.
-- Richer `state.json` schema (per-host services, creds vault reference, findings).
-- Report export to HTML/PDF in addition to Markdown.
+- **Report as the product** — HTML/PDF export, CVSS, retest tracking. Clients pay for the deliverable.
+- **Reproducible examples** — Published runs against known lab targets with full evidence and reports.
+- **Guardrail eval suite** — Tests that attempt out-of-scope actions and assert refusal.
+- **Pluggable model backends** — Keep local-by-default; allow optional frontier models for planning only.
 
-## Longer term / ideas
-- Optional integration with `mcp-kali-server` for a larger tool set.
-- Pluggable model backends beyond Ollama.
-- Web GUI that can drive scans, not just display state.
+## Longer term
+- Interactive GUI (approve/deny, view evidence, drive the engagement).
+- Optional verified-team distribution controls.
 
-Have an idea? Open a feature request.
+The differentiation is the methodology and the audit trail, not raw autonomy.
