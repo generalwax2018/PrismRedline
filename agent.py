@@ -151,6 +151,20 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "cheatsheet",
+            "description": "Look up a local cheatsheet (nmap, privesc, ad) for traditional commands.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "nmap, privesc, or ad"},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_command",
             "description": "Run an arbitrary shell command on the Kali workstation. Blocked for destructive patterns; always requires confirmation. Use sparingly.",
             "parameters": {
