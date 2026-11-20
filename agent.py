@@ -511,46 +511,106 @@ def chat_with_ollama(messages: List[Dict], model: str = DEFAULT_MODEL) -> Dict:
 
 
 SYSTEM_PROMPT = (
-    "You are an AI red team assistant on a Kali workstation. "
-    "You MUST follow these phases in order and never skip ahead:\n"
-    "1. Pre-Engagement & Scoping — confirm rules of engagement and allowed targets.\n"
-    "2. Reconnaissance (OSINT) — passive information gathering only.\n"
-    "3. Scanning & Enumeration — active probing of in-scope targets.\n"
-    "4. Vulnerability Analysis — map findings to known weaknesses.\n"
-    "5. Exploitation — only after confirmation and only to prove the issue.\n"
-    "6. Post-Exploitation & Privilege Escalation — document access obtained.\n"
-    "7. Reporting & Remediation — clear findings, impact, and fixes.\n\n"
-    "Prefer traditional open-source tools mapped to phases:\n"
-    "- Phase 3: nmap, gobuster, nikto, NetExec\n"
-    "- Phase 4: BloodHound collection\n"
-    "- Phase 6: LinPEAS / WinPEAS after foothold\n"
-    "Before any active tool, confirm the target is in scope. "
-    "State the current phase at the start of each major action. "
-    "Prefer passive techniques until the scanning phase. "
+    "You are an AI red team assistant. "
+    "Follow the foundational phases in order before moving to the next:\n"
+    "1. Pre-Engagement & Scoping\n"
+    "2. Reconnaissance\n"
+    "3. Scanning & Enumeration\n"
+    "4. Vulnerability Analysis\n"
+    "5. Exploitation\n"
+    "6. Post-Exploitation & Privilege Escalation\n"
+    "7. Reporting & Remediation\n\n"
+    "Complete the objectives of the current phase before advancing. "
+    "If something does not work, return to an earlier phase and gather more information. "
+    "Traditional tools support the phases but do not replace the sequence. "
     "Only operate against authorized targets."
 )
 
 
+def add_step(target: str, title: str, detail: str, commands: List[str] = None):
+    """Record a step against a host for the report."""
+    state = load_state()
+    hosts = state.setdefault("hosts", {})
+    host = hosts.setdefault(target, {"ports": [], "notes": [], "steps": []})
+    host.setdefault("steps", []).append({
+        "title": title,
+        "detail": detail,
+        "commands": commands or [],
+    })
+    save_state(state)
+
+
+def discover_hosts(target: str):
+    """Phase 3: host discovery + basic port scan, record results, advance when done."""
+    from cli import status
+    blocked = require_scope(target)
+    if blocked:
+        console.print(f"[red]{blocked}[/red]")
+        return
+
+    status.info(f"Phase 3 — Discovering hosts in {target}")
+    cmd = f"nmap -sn {target}"
+    status.update("Running host discovery...")
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
+    output = result.stdout + result.stderr
+    record_scan(target, output, "-sn")
+    add_step(target, "Host Discovery", "nmap -sn to identify live hosts", [cmd])
+
+    live = []
+    for line in output.splitlines():
+        if "Nmap scan report for" in line:
+            host = line.split("for")[-1].strip()
+            live.append(host)
+
+    status.info(f"Found {len(live)} live host(s)")
+    if not live:
+        status.done("No live hosts")
+        return
+
+    for i, host in enumerate(live, 1):
+        status.progress(i, len(live), prefix=f"Scanning {host} ")
+        pcmd = f"nmap -sV -T4 -F {host}"
+        pres = subprocess.run(pcmd, shell=True, capture_output=True, text=True, timeout=120)
+        pout = pres.stdout + pres.stderr
+        record_scan(host, pout, "-sV -T4 -F")
+        add_step(host, "Service Enumeration", "Top ports and versions", [pcmd])
+
+    status.done("Scanning complete")
+    if load_phase() <= 3:
+        set_phase(4)
+        status.info("Advanced to Phase 4 — Vulnerability Analysis")
+
+
 def main():
-    console.print("[bold green]PrismRedline[/bold green] — local AI red team assistant")
-    console.print(f"[dim]Model: {DEFAULT_MODEL} · Ollama: {OLLAMA_URL}[/dim]\n")
+    import argparse
+    parser = argparse.ArgumentParser(description="PrisimRedline")
+    parser.add_argument("--target", help="CIDR or host to start phased discovery against")
+    args = parser.parse_args()
+
+    console.print("[bold green]PrisimRedline[/bold green]")
+    console.print("Local AI red team assistant\n")
+
+    if args.target:
+        if not load_scope():
+            create_scope(args.target)
+        elif not in_scope(args.target):
+            if Confirm.ask(f"Add {args.target} to scope?", default=True):
+                add_to_scope(args.target)
+        set_phase(3)
+        discover_hosts(args.target)
+        console.print("\n[green]Discovery finished. Continuing to chat.[/green]\n")
 
     scope = load_scope()
     if scope:
-        console.print(f"[green]Scope loaded:[/green] {scope.get('name', 'unnamed')}")
-        console.print(f"Allowed: {scope.get('allowed', [])}\n")
-    else:
-        console.print("[yellow]No scope.json found. It will be created the first time an active tool is requested.[/yellow]\n")
-
+        console.print(f"[green]Scope:[/green] {scope.get('name', 'unnamed')} — {scope.get('allowed', [])}")
     current = load_phase()
-    console.print(f"[cyan]Current phase: {PHASES[current - 1]}[/cyan]")
+    console.print(f"[cyan]Phase: {PHASES[current - 1]}[/cyan]")
     console.print("[dim]Type 'next phase' to advance, 'exit' to quit.[/dim]\n")
 
     try:
         requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
     except Exception:
-        console.print("[red]Ollama does not appear to be running. Start it with: ollama serve[/red]")
-        sys.exit(1)
+        console.print("[yellow]Ollama not detected. Chat features limited.[/yellow]")
 
     messages: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
