@@ -604,7 +604,7 @@ def discover_hosts(target: str):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="PrisimRedline")
+    parser = argparse.ArgumentParser(description="PrismRedline")
     parser.add_argument("--target", help="CIDR or host to start phased discovery against")
     args = parser.parse_args()
 
