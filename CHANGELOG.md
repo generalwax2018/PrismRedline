@@ -6,6 +6,10 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Restored `report.py`. The module had regressed to a stub that called
+  undefined `generate()` / `generate_html()`. Report generation works again.
+
 ## [0.1.0] - 2026-11-19
 
 First public baseline.
