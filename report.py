@@ -22,7 +22,7 @@ def load_json(name: str, default):
     if not p.exists():
         return default
     try:
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return default
 
@@ -34,7 +34,7 @@ def load_yaml(name: str) -> dict:
     if not p.exists():
         return {}
     try:
-        return yaml.safe_load(p.read_text()) or {}
+        return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
 
@@ -44,12 +44,12 @@ def build_attack_chain(hosts: dict) -> str:
         return (
             "No attack chain has been recorded for this engagement.\n\n"
             "When findings are present, this section will summarize the full path:\n"
-            "Initial access vector → Privilege escalation → Lateral movement / pivoting → Final objective."
+            "Initial access vector -> Privilege escalation -> Lateral movement / pivoting -> Final objective."
         )
     lines = ["The following high-level chain was observed during the engagement:\n"]
     for i, (ip, info) in enumerate(hosts.items(), 1):
         note = info.get("chain_note", "See detailed findings for this host.")
-        lines.append(f"{i}. **{ip}** — {note}")
+        lines.append(f"{i}. **{ip}** - {note}")
     lines.append(
         "\nEach step below is documented with the relevant enumeration, "
         "access method, and evidence required to understand the path."
@@ -122,7 +122,7 @@ def build_resources() -> str:
     if not resources:
         return "_None listed._\n"
     return "\n".join(
-        f"- **{r.get('name')}** — {r.get('use')} ({r.get('url')})" for r in resources
+        f"- **{r.get('name')}** - {r.get('use')} ({r.get('url')})" for r in resources
     )
 
 
@@ -152,29 +152,29 @@ def generate(output: str = "report.md") -> Path:
         "{{host_inventory}}": "\n".join(f"- {ip}" for ip in hosts) or "- None recorded",
     }
 
-    text = TEMPLATE.read_text()
+    text = TEMPLATE.read_text(encoding="utf-8")
     for k, v in replacements.items():
         text = text.replace(k, v)
 
     out = BASE / output
-    out.write_text(text)
+    out.write_text(text, encoding="utf-8")
     print(f"Report written to {out}")
     return out
 
 
 def generate_html(md_path: Path) -> Path:
     """Minimal HTML export of the markdown report."""
-    body = md_path.read_text()
+    body = md_path.read_text(encoding="utf-8")
     html = (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<title>PrismRedline Report</title>"
         "<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:2rem auto;line-height:1.5;}"
         "pre{background:#f4f4f4;padding:1rem;overflow:auto;}</style></head><body><pre>"
-        + body.replace("&", "&").replace("<", "<")
+        + body.replace("&", "&amp;").replace("<", "&lt;")
         + "</pre></body></html>"
     )
     out = md_path.with_suffix(".html")
-    out.write_text(html)
+    out.write_text(html, encoding="utf-8")
     print(f"HTML report: {out}")
     return out
 
