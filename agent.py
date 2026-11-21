@@ -21,6 +21,8 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
 
+import policy
+
 console = Console()
 
 # Configuration (overridable via environment)
@@ -192,7 +194,7 @@ def load_scope() -> Optional[Dict]:
     if not SCOPE_FILE.exists():
         return None
     try:
-        return json.loads(SCOPE_FILE.read_text())
+        return json.loads(SCOPE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return None
 
@@ -268,7 +270,7 @@ def create_scope(first_target: str):
         "created": datetime.now(timezone.utc).isoformat(),
         "notes": "Created interactively by PrismRedline. Only authorized targets.",
     }
-    SCOPE_FILE.write_text(json.dumps(scope, indent=2))
+    SCOPE_FILE.write_text(json.dumps(scope, indent=2), encoding="utf-8")
     console.print(f"[green]Created {SCOPE_FILE.name} with target {first_target}[/green]")
 
 
@@ -277,7 +279,7 @@ def add_to_scope(target: str):
     entry = _host_from_target(target)
     if entry not in scope.get("allowed", []):
         scope.setdefault("allowed", []).append(entry)
-        SCOPE_FILE.write_text(json.dumps(scope, indent=2))
+        SCOPE_FILE.write_text(json.dumps(scope, indent=2), encoding="utf-8")
         console.print(f"[green]Added {entry} to scope.[/green]")
 
 
@@ -288,13 +290,13 @@ def load_state() -> Dict:
     if not STATE_FILE.exists():
         return {"hosts": {}, "scans": []}
     try:
-        return json.loads(STATE_FILE.read_text())
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {"hosts": {}, "scans": []}
 
 
 def save_state(state: Dict):
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+    STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
 def _parse_nmap_ports(output: str) -> List[Dict[str, str]]:
@@ -313,7 +315,7 @@ def save_evidence(tool: str, target: str, output: str) -> Path:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{tool}_{_host_from_target(target) or 'local'}_{ts}")
     path = EVIDENCE_DIR / f"{safe}.txt"
-    path.write_text(output)
+    path.write_text(output, encoding="utf-8")
     return path
 
 
@@ -351,15 +353,15 @@ def load_phase() -> int:
     if not PHASE_FILE.exists():
         return 1
     try:
-        return int(json.loads(PHASE_FILE.read_text()).get("current", 1))
+        return int(json.loads(PHASE_FILE.read_text(encoding="utf-8")).get("current", 1))
     except Exception:
         return 1
 
 
 def set_phase(n: int):
     data = {"current": n, "name": PHASES[n - 1] if 1 <= n <= len(PHASES) else "unknown"}
-    PHASE_FILE.write_text(json.dumps(data, indent=2))
-    console.print(f"[cyan]Phase → {data['name']}[/cyan]")
+    PHASE_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    console.print(f"[cyan]Phase -> {data['name']}[/cyan]")
 
 
 def advance_phase():
@@ -385,6 +387,14 @@ def _run(cmd: str, timeout: int) -> str:
 
 def run_tool(name: str, args: Dict[str, Any]) -> str:
     """Execute a tool and return its output."""
+    # Phase gate: a tool may only run once its phase has been reached.
+    if not policy.tool_allowed_in_phase(name):
+        current = load_phase()
+        phase_name = PHASES[current - 1] if 1 <= current <= len(PHASES) else "unknown"
+        return (
+            f"BLOCKED: '{name}' is not permitted in the current phase "
+            f"({phase_name}). Advance to its phase before using it."
+        )
     try:
         if name == "nmap_scan":
             target = args.get("target", "")
@@ -495,7 +505,7 @@ def run_tool(name: str, args: Dict[str, Any]) -> str:
             path = Path("cheatsheets") / f"{sheet}.md"
             if not path.exists():
                 return f"No cheatsheet named '{sheet}'. Available: nmap, privesc, ad"
-            return path.read_text()
+            return path.read_text(encoding="utf-8")
 
         elif name == "run_command":
             command = args.get("command", "")
@@ -569,7 +579,7 @@ def discover_hosts(target: str):
         console.print(f"[red]{blocked}[/red]")
         return
 
-    status.info(f"Phase 3 — Discovering hosts in {target}")
+    status.info(f"Phase 3 - Discovering hosts in {target}")
     cmd = f"nmap -sn {target}"
     status.update("Running host discovery...")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
@@ -599,7 +609,7 @@ def discover_hosts(target: str):
     status.done("Scanning complete")
     if load_phase() <= 3:
         set_phase(4)
-        status.info("Advanced to Phase 4 — Vulnerability Analysis")
+        status.info("Advanced to Phase 4 - Vulnerability Analysis")
 
 
 def main():
@@ -623,7 +633,7 @@ def main():
 
     scope = load_scope()
     if scope:
-        console.print(f"[green]Scope:[/green] {scope.get('name', 'unnamed')} — {scope.get('allowed', [])}")
+        console.print(f"[green]Scope:[/green] {scope.get('name', 'unnamed')} - {scope.get('allowed', [])}")
     current = load_phase()
     console.print(f"[cyan]Phase: {PHASES[current - 1]}[/cyan]")
     console.print("[dim]Type 'next phase' to advance, 'exit' to quit.[/dim]\n")
