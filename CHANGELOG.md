@@ -6,6 +6,23 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1-beta] - 2026-11-24
+
+### Added
+- Dashboard (`gui.py`) now shows phase progress, hosts and services,
+  severity-ranked findings, an ATT&CK reference table, and the scan/evidence log.
+- Tests for `--target` discovery host parsing.
+
+### Changed
+- `--target` discovery now asks for confirmation, honors the phase gate,
+  scans only in-scope hosts, and shell-quotes targets.
+- Minimum supported Python is now 3.10 (CI covers 3.10-3.13).
+
+### Fixed
+- Packaging: `policy`, `findings` and `mcp_adapter` were missing from the
+  installed modules, so `agent.py` failed to import when pip-installed.
+- Discovery failed on hosts that nmap reports as `name (ip)`.
+- Lint errors (ruff) and the CI Python 3.9 job.
 ## [0.1.0-beta] - 2026-11-20
 
 First public beta.
@@ -42,6 +59,7 @@ First public baseline.
   allowed false positives (e.g. `110.0.0.10` vs `10.0.0.0/8`).
 - Shell arguments are now quoted (`shlex.quote`).
 
-[Unreleased]: https://github.com/generalwax2018/PrismRedline/compare/v0.1.0-beta...HEAD
+[Unreleased]: https://github.com/generalwax2018/PrismRedline/compare/v0.1.1-beta...HEAD
+[0.1.1-beta]: https://github.com/generalwax2018/PrismRedline/compare/v0.1.0-beta...v0.1.1-beta
 [0.1.0-beta]: https://github.com/generalwax2018/PrismRedline/compare/v0.1.0...v0.1.0-beta
 [0.1.0]: https://github.com/generalwax2018/PrismRedline/releases/tag/v0.1.0
