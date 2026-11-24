@@ -38,7 +38,7 @@ Issues = "https://github.com/generalwax2018/PrismRedline/issues"
 prismredline = "agent:main"
 
 [tool.setuptools]
-py-modules = ["agent", "cli", "report", "gui"]
+py-modules = ["agent", "cli", "report", "gui", "policy", "findings", "mcp_adapter"]
 
 [tool.ruff]
 line-length = 110
