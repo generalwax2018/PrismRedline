@@ -7,7 +7,7 @@ name = "prismredline"
 version = "0.1.0"
 description = "Local AI red-team assistant that follows the classic pentesting phases, running on Ollama + real Kali tools."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "generalwax2018" }]
 keywords = ["pentest", "red-team", "security", "ollama", "kali", "ai-agent"]
@@ -42,7 +42,7 @@ py-modules = ["agent", "cli", "report", "gui"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 # Keep the default rule set light for an early-stage project.
