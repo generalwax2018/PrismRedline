@@ -3,7 +3,7 @@ Simple MCP-style tool adapter.
 PrismRedline can call external tool servers while still applying its own gates.
 """
 
-from typing import Callable, Dict, Any
+from typing import Any, Callable, Dict
 
 
 class MCPAdapter:

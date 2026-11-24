@@ -4,8 +4,7 @@ Clean one-line status updates and text progress bars.
 """
 
 import sys
-import time
-from typing import Optional
+
 
 class Status:
     def __init__(self):
@@ -43,8 +42,9 @@ class Status:
 
 def show_checklist(phase: int):
     """Print phase checklist criteria."""
-    import yaml
     from pathlib import Path
+
+    import yaml
     p = Path(__file__).parent / "phase_checklist.yaml"
     if not p.exists():
         return

@@ -10,7 +10,6 @@ import os
 import re
 import shlex
 import subprocess
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -19,7 +18,7 @@ from urllib.parse import urlparse
 import requests
 from rich.console import Console
 from rich.markdown import Markdown
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, Prompt
 
 import policy
 
@@ -571,6 +570,17 @@ def add_step(target: str, title: str, detail: str, commands: List[str] = None):
     save_state(state)
 
 
+def _parse_report_host(line: str) -> str:
+    """Extract the IP/host from an 'Nmap scan report for ...' line.
+
+    Handles both 'Nmap scan report for 10.0.0.5' and
+    'Nmap scan report for name.local (10.0.0.5)' (returns the IP).
+    """
+    rest = line.split("Nmap scan report for", 1)[-1].strip()
+    m = re.search(r"\(([^)]+)\)\s*$", rest)
+    return (m.group(1) if m else rest).strip()
+
+
 def discover_hosts(target: str):
     """Phase 3: host discovery + basic port scan, record results, advance when done."""
     from cli import status
@@ -579,8 +589,15 @@ def discover_hosts(target: str):
         console.print(f"[red]{blocked}[/red]")
         return
 
+    if not policy.tool_allowed_in_phase("nmap_scan"):
+        console.print("[red]BLOCKED: scanning is not permitted in the current phase.[/red]")
+        return
+    if not Confirm.ask(f"Run host discovery (nmap -sn) and a fast service scan against {target}?", default=False):
+        console.print("[yellow]Discovery cancelled by user.[/yellow]")
+        return
+
     status.info(f"Phase 3 - Discovering hosts in {target}")
-    cmd = f"nmap -sn {target}"
+    cmd = f"nmap -sn {shlex.quote(target)}"
     status.update("Running host discovery...")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
     output = result.stdout + result.stderr
@@ -590,17 +607,18 @@ def discover_hosts(target: str):
     live = []
     for line in output.splitlines():
         if "Nmap scan report for" in line:
-            host = line.split("for")[-1].strip()
-            live.append(host)
+            host = _parse_report_host(line)
+            if host and in_scope(host):
+                live.append(host)
 
-    status.info(f"Found {len(live)} live host(s)")
+    status.info(f"Found {len(live)} live in-scope host(s)")
     if not live:
         status.done("No live hosts")
         return
 
     for i, host in enumerate(live, 1):
         status.progress(i, len(live), prefix=f"Scanning {host} ")
-        pcmd = f"nmap -sV -T4 -F {host}"
+        pcmd = f"nmap -sV -T4 -F {shlex.quote(host)}"
         pres = subprocess.run(pcmd, shell=True, capture_output=True, text=True, timeout=120)
         pout = pres.stdout + pres.stderr
         record_scan(host, pout, "-sV -T4 -F")

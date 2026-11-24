@@ -5,11 +5,12 @@ discovered hosts and services, findings, MITRE ATT&CK mapping, and the evidence
 trail. Read-only view over the same state files the agent writes.
 """
 
+import json
+from pathlib import Path
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-import uvicorn
-from pathlib import Path
-import json
 
 try:
     import yaml
@@ -275,7 +276,7 @@ async def index():
               {findings_list(findings)}
             </div>
             <div class="panel">
-              <h2>MITRE ATT&amp;CK Coverage</h2>
+              <h2>MITRE ATT&amp;CK Reference</h2>
               {mitre_table(bool(hosts))}
             </div>
           </div>

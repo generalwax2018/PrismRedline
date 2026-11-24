@@ -3,9 +3,9 @@ PrismRedline policy engine.
 Scope + phase + confirmation are the real gates. This module centralizes them.
 """
 
+import json
 from pathlib import Path
 from typing import Optional
-import json
 
 BASE = Path(__file__).parent
 SCOPE_FILE = BASE / "scope.json"
